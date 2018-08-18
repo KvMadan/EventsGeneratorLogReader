@@ -84,7 +84,7 @@ public class Main {
 			Thread receiverThread = new Thread(new Runnable(){
 
 				public void run() {
-					
+					Thread.currentThread().setName("EG Reader");
 					try {
 						metricsReceived = new StringBuffer();
 						log.debug("Receiving data from Server:");
@@ -117,6 +117,7 @@ public class Main {
 	public void startWriter(){
 		Thread senderThread = new Thread(new Runnable(){
 			public void run() {
+				Thread.currentThread().setName("EG Writer");
 				while(true){
 					// This is a message sent to the server
 					writer.print("GET_MONITOR"); // change it to print while working with real EG Server. 
@@ -136,6 +137,7 @@ public class Main {
 	public void sentMetricsToDB(){
 		Thread metricsDBSenderThread = new Thread(new Runnable(){
 			public void run() {
+				Thread.currentThread().setName("EG Metrics DB Sender");
 				while(true){
 					
 					java.util.Date dt = new java.util.Date();
