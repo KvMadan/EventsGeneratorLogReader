@@ -1,7 +1,7 @@
 /**
- *         EG Commands: GET_MONITOR - default"; GET_FULL_MONITOR";
- *         GET_APP_STAT"; GET_REPORT"; PRINT_REPORT"; SET_LOG_LEVEL:[0,1,2]";
- *         PAUSE_LOAD:[SECONDS]"; RESUME_LOAD"; PRINT_WARN:[0,1]";
+ *  EG Commands: GET_MONITOR - default"; GET_FULL_MONITOR";
+ *  GET_APP_STAT"; GET_REPORT"; PRINT_REPORT"; SET_LOG_LEVEL:[0,1,2]";
+ *  PAUSE_LOAD:[SECONDS]"; RESUME_LOAD"; PRINT_WARN:[0,1]";
  */
 package in.km.oneview.eg;
 
@@ -29,30 +29,33 @@ import org.apache.log4j.PropertyConfigurator;
  * @author Madan Kavarthapu
  *
  */
-@SuppressWarnings("unused")
+
 public class Main {
 
 	final static Logger log = Logger.getLogger(Main.class);
 	
 	private String hostname = "10.237.48.238";
 	private String port = "30010";
+	private int frequency;
 	private String line;
 	
-	private Socket socket;
+	private Socket socket, reportSocket;
 	
-	private InputStream input;
-	private BufferedReader reader;
+	private InputStream input, reportInput;
+	private BufferedReader reader, reportReader;
 	
-	private OutputStream output;
-	private PrintWriter writer;
+	private OutputStream output, reportOutput;
+	private PrintWriter writer, reportWriter;
 	
-	private StringBuffer metricsReceived;
+	private StringBuffer metricsReceived, reportReceived;
 	
 	private GenericMysqlMetricsSender mysqlMetricsSender;
 	
-	public Main(String hostname, String port){
+	public Main(String hostname, String port, String frequency){
 		this.hostname = hostname;
 		this.port = port;
+		
+		this.frequency = frequency.isEmpty() ? 5 : Integer.parseInt(frequency);
 	}
 	
 	public boolean init(){
@@ -61,14 +64,23 @@ public class Main {
 			log.debug("Connecting to EG Server @ " + hostname + ":" + port);
 			System.out.println("Connecting to EG Server @ " + hostname + ":" + port);
 			socket = new Socket(InetAddress.getByName(hostname), Integer.parseInt(port));
+			reportSocket = new Socket(InetAddress.getByName(hostname), Integer.parseInt(port));
 			// read data from server.
 			input = socket.getInputStream();
 			reader = new BufferedReader(
 					new InputStreamReader(input));
+			// read report data from server
+			reportInput = reportSocket.getInputStream();
+			reportReader = new BufferedReader(
+					new InputStreamReader(reportInput));
 			
 			// send data to server
 			output = socket.getOutputStream();
 			writer = new PrintWriter(output, true);
+			//send report data to server
+			reportOutput = reportSocket.getOutputStream();
+			reportWriter = new PrintWriter(reportOutput, true);
+			
 			return true;
 		}
 		catch(Exception e){
@@ -103,14 +115,40 @@ public class Main {
 			e.printStackTrace();
 		}
 	}
-	
-	private void printMetrics(HashMap<String, String> map){
 
+	public void startReportReader(){
+		
+		try{
+			Thread receiverThread = new Thread(new Runnable(){
+
+				public void run() {
+					Thread.currentThread().setName("EG Report Reader");
+					try {
+						reportReceived = new StringBuffer();
+						log.debug("Receiving data from Server:");
+						while ((line = reportReader.readLine()) != null) {
+							log.debug(line);
+							reportReceived.append(line + System.lineSeparator());
+						}
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			});
+			receiverThread.start();
+		}
+		catch(Exception e){
+			e.printStackTrace();
+		}
+	}	
+	
+	@SuppressWarnings("unused")
+	private void printMetrics(HashMap<String, String> map){
 	    Iterator<Map.Entry<String, String>> it = map.entrySet().iterator();
 	    while (it.hasNext()) {
 	        Map.Entry<String, String> pair = it.next();
-	        log.debug(pair.getKey() + " --> " + pair.getValue());
-	        it.remove(); 
+	        log.debug(pair.getKey() + " = " + pair.getValue());
+	        //it.remove(); 
 	    }
 	}
 	
@@ -123,6 +161,26 @@ public class Main {
 					writer.print("GET_MONITOR"); // change it to print while working with real EG Server. 
 					writer.flush();
 					log.debug("Sent Message: GET_MONITOR");
+					try {
+						Thread.sleep(frequency * 1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		});
+		senderThread.start();
+	}
+	
+	public void startReportWriter(){
+		Thread senderThread = new Thread(new Runnable(){
+			public void run() {
+				Thread.currentThread().setName("EG Report Writer");
+				while(true){
+					// This is a message sent to the server
+					reportWriter.print("GET_REPORT"); // change it to print while working with real EG Server. 
+					reportWriter.flush();
+					log.debug("Sent Message: GET_REPORT");
 					try {
 						Thread.sleep(5000);
 					} catch (InterruptedException e) {
@@ -144,9 +202,9 @@ public class Main {
 					java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 					String currentTime = sdf.format(dt);
 					
-					// This is a message sent to DB
+					// Sending metrics to DB
 					if (metricsReceived.length() != 0){
-						log.debug("Received Message Length : " + metricsReceived.length());
+						log.debug("Received Message Length : " + metricsReceived.length() + "\\n Message Received: " + metricsReceived.toString());
 						
 						String[] lines = metricsReceived.toString().split("\\n");
 						HashMap<String, String> map = new HashMap<String, String>();
@@ -158,9 +216,12 @@ public class Main {
 					
 							if (!line.startsWith("###")){
 								String[] metrics = line.split("\\s+");
+								System.out.println("Metrics Lines: " + metrics.length);
 							    //System.out.println(metrics[0] + " = " + metrics[1]);
-
-								map.put(metrics[0].replaceAll("[)(]", ""), metrics[1]);
+								if (metrics.length != 0){
+									System.out.println(metrics[0] + " = " + metrics[1]);
+									map.put(metrics[0].replaceAll("[)(]", ""), metrics[1]);
+								}
 							}
 							else{
 								previousEvent = currentEvent;
@@ -181,6 +242,61 @@ public class Main {
 						mysqlMetricsSender.writeMetricsToDB(currentEvent.replaceAll("###", "").trim(), map, currentTime);
 						
 						metricsReceived.setLength(0);
+						
+						// Sending Report to DB
+						if (reportReceived.length() != 0){
+							log.debug("Received Report Length : " + reportReceived.length());
+							log.debug("Received Report: " + reportReceived.toString());
+							
+							String[] reportLines = reportReceived.toString().split("\\r?\\n");
+							log.debug("Received Report Lines: " + reportLines.length);
+							HashMap<String, String> reportMap = new HashMap<String, String>();
+							String tag="";
+							String reportX="";
+							
+							for(String line: reportLines){
+								if (line.trim().matches("EG\\d+\\s+Report")){
+									
+									String[] reports = line.split("\\s+");
+									reportX = reports[0];
+									log.debug("EG Report ID# " + reportX);
+									
+									//Send Report to DB if multiple reports returned by EG
+									if(!reportMap.isEmpty()){
+										mysqlMetricsSender.writeReportToDB(reportX, reportMap, currentTime);
+									}
+									
+								}
+								else if (line.trim().equalsIgnoreCase("Load Summary"))
+									tag = "LS_";
+								else if (line.trim().equalsIgnoreCase("Total Summary"))
+									tag = "TS_";
+								else if (line.trim().equalsIgnoreCase("Charges Summary"))
+									tag = "CS_";
+								else if (line.startsWith("NET_TOTALSEND") || line.startsWith("NET_TOTALRECV") || 
+										line.startsWith("NET_TOTALSESS") || line.startsWith("TOTAL_RUN_TIME"))
+									tag = "X_";
+								
+								if (isItMetric(line)){
+									String[] metrics = line.split("\\s+");
+								    log.debug(tag + metrics[0] + " = " + metrics[1]);
+
+									reportMap.put(tag + metrics[0], metrics[1]);
+								}
+							}
+							//Printing Map Details
+							//log.debug("Printing Map Details: ");
+							//printMetrics(reportMap);
+							
+							//Send Report to DB
+							if(!reportMap.isEmpty()){
+								mysqlMetricsSender.writeReportToDB(reportX, reportMap, currentTime);
+							}
+								
+							
+							reportReceived.setLength(0);
+						}
+						
 					}
 					try {
 						Thread.sleep(5000);
@@ -191,6 +307,20 @@ public class Main {
 			}
 		});
 		metricsDBSenderThread.start();
+	}
+	
+	private boolean isItMetric(String line){
+		//System.out.println("Is it Metric: " + line);
+		if (line.trim().matches("EG\\d+\\s+Report") || line.startsWith("=") || line.startsWith("-") ||
+				line.trim().equalsIgnoreCase("Load Summary") ||  
+				line.trim().equalsIgnoreCase("Total Summary") || 
+				line.trim().equalsIgnoreCase("Charges Summary") ||
+				line.equalsIgnoreCase("END_OF_REPORT") || 
+				line.length() == 0){
+			
+			return false;
+		}
+		return true;
 	}
 	
 	/**
@@ -215,6 +345,7 @@ public class Main {
 		String mysqlDb = System.getProperty("mysql.db");
 		String mysqlUser = System.getProperty("mysql.user");
 		String mysqlPwd = System.getProperty("mysql.pwd");
+		String egFrequency = System.getProperty("eg.frequency");
 		
 		/*
 		 * (egserver.length() == 0 || egport.length()== 0 || 
@@ -230,26 +361,26 @@ public class Main {
 			
 			System.out.println("\nMissing Required parameters!\n");
 			
-			String usage = "Usage: \\n java -Deg.server=10.237.48.238 -Deg.port=30010 \\n -Dmysql.server=localhost -Dmysql.port=3306 \\n"
-					+ "-Dmysql.db=egdb -Dmysql.user=root -Dmysql.pwd=root \\n -Dlog4j.configuration=.\\res\\log4j.properties \\n "
-					+ "-jar EGLogsReader_v1.1.jar";
+			/*String usage = "Usage: \\n java -Deg.server=10.237.48.238 -Deg.port=30010 \\n -Dmysql.server=localhost -Dmysql.port=3306 \\n"
+					+ "-Dmysql.db=egdb -Dmysql.user=root -Dmysql.pwd=root \\n -Dlog4j.configuration=.\\log4j.properties \\n "
+					+ "-jar EGLogsReader_v1.1.jar";*/
 			
 			System.out.println("*****************************************************");
 			System.out.println("Usage: ");
 			System.out.println("java -Deg.server=10.237.48.238 -Deg.port=30010");
 			System.out.println("-Dmysql.server=localhost -Dmysql.port=3306");
-			System.out.println("-Dmysql.db=egdb -Dmysql.user=root -Dmysql.pwd=root");
+			System.out.println("-Dmysql.db=egdb -Dmysql.user=root -Dmysql.pwd=root -Deg.frequency=5");
 			System.out.println("-jar EGLogsReader_v1.1.jar");
 			System.out.println("*****************************************************");
 			
 			System.exit(1);
 		}
 		else{
-			System.out.println("All available");
+			log.debug("EG Server: " + System.getProperty("eg.server"));
 		}
 		
-		log.debug("EG Server: " + System.getProperty("eg.server"));
-		Main eg = new Main(System.getProperty("eg.server"), System.getProperty("eg.port"));
+		
+		Main eg = new Main(System.getProperty("eg.server"), System.getProperty("eg.port"), System.getProperty("eg.frequency"));
 
 		if(eg.init()){
 			
@@ -260,6 +391,10 @@ public class Main {
 			eg.startWriter();
 			eg.startReader();
 			eg.sentMetricsToDB();
+			
+			//For Report
+			eg.startReportWriter();
+			eg.startReportReader();
 		}
 	}
 }
