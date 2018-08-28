@@ -160,6 +160,18 @@ public class Main {
 					// This is a message sent to the server
 					writer.print("GET_MONITOR"); // change it to print while working with real EG Server. 
 					writer.flush();
+					
+					//Checking the server side socket availability. 
+					if (writer.checkError()){
+						try {
+							socket.close();
+							log.debug("Exiting...");
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+						System.exit(1);
+					}
+					
 					log.debug("Sent Message: GET_MONITOR");
 					try {
 						Thread.sleep(frequency * 1000);
