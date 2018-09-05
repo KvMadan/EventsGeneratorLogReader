@@ -279,7 +279,7 @@ public class Main {
 			Runnable reportSenderThread =	new Runnable(){
 			public void run() {
 				Thread.currentThread().setName("EG Report DB Sender");
-				while(true){
+				//while(true){
 					
 					java.util.Date dt = new java.util.Date();
 					java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -355,12 +355,12 @@ public class Main {
 					else{
 						log.debug("No data to send");
 					}
-					try {
+					/*try {
 						Thread.sleep(10000);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
-					}
-				}
+					}*/
+				//}
 			}
 		};
 				//);
