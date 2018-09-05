@@ -32,6 +32,7 @@ public class GenericMysqlMetricsSender {
 
 	private String TABLE_CREATE_EG_SQL = "CREATE TABLE IF NOT EXISTS %s.eg ("
 			+ "  `tStamp` datetime(6) NOT NULL,"
+			+ "  `testName` varchar(50),"
 			+ "  `eventtype` varchar(50),"
 			+ "  `TPS` decimal(12,3),"
 			+ "  `TRTms` decimal(12,3),"
@@ -55,6 +56,7 @@ public class GenericMysqlMetricsSender {
 	//For Report
 	private String TABLE_CREATE_EG_REPORT_SQL = "CREATE TABLE IF NOT EXISTS %s.egreport ("
 			+ "tStamp datetime(6) NOT NULL,"
+			+ "testName varchar(50),"
 			+ "ReportName varchar(50),"
 			+ "LS_LAT_MAX decimal(12,3),"
 			+ "LS_LAT_50 decimal(12,3),"
@@ -239,10 +241,14 @@ public class GenericMysqlMetricsSender {
 		}
 	}
 	
-	public void writeMetricsToDB(String eventType, HashMap<String, String> map, String currentTime){
+	public void writeMetricsToDB(String testName, String eventType, HashMap<String, String> map, String currentTime){
 		
 		StringBuffer keys = new StringBuffer();
 		StringBuffer values = new StringBuffer();
+		
+		//Adding TestName
+		keys.append("testName" + ",");
+        values.append("'" + testName + "',");
 		
 		//Adding Event Type
         keys.append("eventtype" + ",");
@@ -277,7 +283,7 @@ public class GenericMysqlMetricsSender {
 		}
 	}
 	
-	public void writeReportToDB(String reportName, HashMap<String, String> map, String reportTime){
+	public void writeReportToDB(String testName, String reportName, HashMap<String, String> map, String reportTime){
 		StringBuffer keys = new StringBuffer();
 		StringBuffer values = new StringBuffer();
 		
@@ -285,6 +291,10 @@ public class GenericMysqlMetricsSender {
 		
 		// For NET_APP*** LATE_APP*** values
 		StringBuffer statusFields = new StringBuffer();
+		
+		//Adding TestName
+		keys.append("testName" + ",");
+        values.append("'" + testName + "',");
 		
 		//Adding Event Type
         keys.append("ReportName" + ",");

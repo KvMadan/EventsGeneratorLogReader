@@ -35,6 +35,7 @@ public class Main {
 	private String hostname = "10.237.48.238";
 	private String port = "30010";
 	private int frequency;
+	private String testName;
 	//private String line;
 	
 	private Socket socket, reportSocket;
@@ -49,7 +50,7 @@ public class Main {
 	
 	private GenericMysqlMetricsSender mysqlMetricsSender;
 	
-	public Main(String hostname, String port, String frequency){
+	public Main(String hostname, String port, String frequency, String testName){
 		this.hostname = hostname;
 		this.port = port;
 		
@@ -57,6 +58,11 @@ public class Main {
 			this.frequency = Integer.parseInt(frequency);
 		else
 			this.frequency = 5;
+		
+		if (testName != null && !testName.isEmpty())
+			this.testName = testName + "_" + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date());
+		else
+			this.testName = "Test_" + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date());
 	}
 	
 	public boolean init(){
@@ -249,7 +255,7 @@ public class Main {
 								//printMetrics(map);
 								//Write Metrics to DB
 								if(!map.isEmpty())
-									mysqlMetricsSender.writeMetricsToDB(previousEvent.replaceAll("###", "").trim(), map, currentTime);
+									mysqlMetricsSender.writeMetricsToDB(testName, previousEvent.replaceAll("###", "").trim(), map, currentTime);
 								
 							}
 						}
@@ -257,7 +263,7 @@ public class Main {
 						log.debug("Sending Metrics (last received): " + currentEvent);
 						//printMetrics(map);
 						//Write the last received Metrics to DB
-						mysqlMetricsSender.writeMetricsToDB(currentEvent.replaceAll("###", "").trim(), map, currentTime);
+						mysqlMetricsSender.writeMetricsToDB(testName, currentEvent.replaceAll("###", "").trim(), map, currentTime);
 						
 						metricsReceived.setLength(0);
 					}
@@ -311,7 +317,7 @@ public class Main {
 									java.util.Date dt = new java.util.Date();
 									java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 									String currentTime = sdf.format(dt);
-									mysqlMetricsSender.writeReportToDB(previousReportX, reportMap, currentTime);
+									mysqlMetricsSender.writeReportToDB(testName, previousReportX, reportMap, currentTime);
 									reportReceived.setLength(0);
 								}
 								
@@ -349,7 +355,7 @@ public class Main {
 							java.util.Date dt = new java.util.Date();
 							java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 							String currentTime = sdf.format(dt);
-							mysqlMetricsSender.writeReportToDB(currentReportX, reportMap, currentTime);
+							mysqlMetricsSender.writeReportToDB(testName, currentReportX, reportMap, currentTime);
 							reportReceived.setLength(0);
 						}
 					}
@@ -430,7 +436,8 @@ public class Main {
 			System.out.println("Usage: ");
 			System.out.println("java -Deg.server=10.237.48.238 -Deg.port=30010");
 			System.out.println("-Dmysql.server=localhost -Dmysql.port=3306");
-			System.out.println("-Dmysql.db=egdb -Dmysql.user=root -Dmysql.pwd=root -Deg.frequency=5");
+			System.out.println("-Dmysql.db=egdb -Dmysql.user=root -Dmysql.pwd=root");
+			System.out.println("-Deg.frequency=5 -Deg.testname=XYZ");
 			System.out.println("-jar EGLogsReader_v1.1.jar");
 			System.out.println("*****************************************************");
 			
@@ -441,7 +448,7 @@ public class Main {
 		}
 		
 		
-		Main eg = new Main(System.getProperty("eg.server"), System.getProperty("eg.port"), System.getProperty("eg.frequency"));
+		Main eg = new Main(System.getProperty("eg.server"), System.getProperty("eg.port"), System.getProperty("eg.frequency"), System.getProperty("eg.testname"));
 
 		if(eg.init()){
 			
