@@ -233,10 +233,10 @@ public class GenericMysqlMetricsSender {
 			// connection.close();
 
 		} catch (ClassNotFoundException e) {
-			log.error("Class Not found: " + JDBC_DRIVER);
+			log.error("ClassNotFound ", e);
 			e.printStackTrace();
 		} catch (SQLException e) {
-			log.error(e.getMessage());
+			log.error("SQLException ", e);
 			e.printStackTrace();
 		}
 	}
@@ -279,7 +279,7 @@ public class GenericMysqlMetricsSender {
 			int count = statement.executeUpdate(sql);
 			log.debug("Rows Inserted in DB: " + count);
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.error("SQLException", e);
 		}
 	}
 	
@@ -341,7 +341,7 @@ public class GenericMysqlMetricsSender {
 			log.debug("Rows Inserted in DB:(EG Status Codes) " + count);
 			
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.error("SQLException", e);
 		}
 	}
 
@@ -350,7 +350,7 @@ public class GenericMysqlMetricsSender {
 		try {
 			connection.close();
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.error("SQLException", e);
 		} finally {
 			try {
 				connection.close();

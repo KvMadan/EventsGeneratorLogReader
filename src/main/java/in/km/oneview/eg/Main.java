@@ -92,7 +92,7 @@ public class Main {
 			return true;
 		}
 		catch(Exception e){
-			e.printStackTrace();
+			log.error("Exception", e);
 		}
 		return false;
 	}
@@ -114,14 +114,14 @@ public class Main {
 							metricsReceived.append(line + System.lineSeparator());
 						}
 					} catch (IOException e) {
-						e.printStackTrace();
+						log.error("IOException", e);
 					}
 				}
 			});
 			receiverThread.start();
 		}
 		catch(Exception e){
-			e.printStackTrace();
+			log.error("Exception", e);
 		}
 	}
 
@@ -141,14 +141,14 @@ public class Main {
 							reportReceived.append(line + System.lineSeparator());
 						}
 					} catch (IOException e) {
-						e.printStackTrace();
+						log.error("IOException", e);
 					}
 				}
 			});
 			receiverThread.start();
 		}
 		catch(Exception e){
-			e.printStackTrace();
+			log.error("Exception", e);
 		}
 	}	
 	
@@ -186,7 +186,7 @@ public class Main {
 					try {
 						Thread.sleep(frequency * 1000);
 					} catch (InterruptedException e) {
-						e.printStackTrace();
+						log.error("Exception", e);
 					}
 				}
 			}
@@ -206,7 +206,7 @@ public class Main {
 					try {
 						Thread.sleep(60000);
 					} catch (InterruptedException e) {
-						e.printStackTrace();
+						log.error("Exception", e);
 					}
 				}
 			}
@@ -270,7 +270,7 @@ public class Main {
 					try {
 						Thread.sleep(5000);
 					} catch (InterruptedException e) {
-						e.printStackTrace();
+						log.error("Exception", e);
 					}
 				}
 			}
