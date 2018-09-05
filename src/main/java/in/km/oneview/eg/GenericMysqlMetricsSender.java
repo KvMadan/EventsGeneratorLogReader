@@ -31,7 +31,7 @@ public class GenericMysqlMetricsSender {
 	private String DB_CREATE_SQL = "CREATE DATABASE %s";
 
 	private String TABLE_CREATE_EG_SQL = "CREATE TABLE IF NOT EXISTS %s.eg ("
-			+ "  `tStamp` datetime NOT NULL,"
+			+ "  `tStamp` datetime(6) NOT NULL,"
 			+ "  `eventtype` varchar(50),"
 			+ "  `TPS` decimal(12,3),"
 			+ "  `TRTms` decimal(12,3),"
@@ -54,7 +54,7 @@ public class GenericMysqlMetricsSender {
 
 	//For Report
 	private String TABLE_CREATE_EG_REPORT_SQL = "CREATE TABLE IF NOT EXISTS %s.egreport ("
-			+ "tStamp datetime NOT NULL,"
+			+ "tStamp datetime(6) NOT NULL,"
 			+ "ReportName varchar(50),"
 			+ "LS_LAT_MAX decimal(12,3),"
 			+ "LS_LAT_50 decimal(12,3),"
@@ -103,7 +103,8 @@ public class GenericMysqlMetricsSender {
 			+ "X_NET_TOTALSEND decimal(12,3),"
 			+ "X_NET_TOTALRECV decimal(12,3),"
 			+ "X_NET_TOTALSESS decimal(12,3),"
-			+ "X_TOTAL_RUN_TIME varchar(15)"
+			+ "X_TOTAL_RUN_TIME varchar(15),"
+			+ "PRIMARY KEY (`tStamp`)"
 			+ ")";
 	
 	private String INSERT_EG_REPORT_SQL = "INSERT INTO %s.egreport ( %s ) VALUES ( %s )";
@@ -112,12 +113,15 @@ public class GenericMysqlMetricsSender {
 	
 	// For Report Status codes. 
 	private String TABLE_CREATE_EG_REPORT_STATUS_SQL = "CREATE TABLE IF NOT EXISTS %s.egstatuscodes ("
-			+ " `tStamp` DATETIME NOT NULL," 
+			+ "	`tStamp` DATETIME(6) NOT NULL,"
+			+ " `tStampReport` DATETIME(6) NOT NULL," 
 			+ " `statuscode` VARCHAR(45) NULL,"
 			+ " `value` DECIMAL(12,2) NULL,"
-			+ " PRIMARY KEY (`tStamp`))"; 
+			+ " PRIMARY KEY (`tStamp`),"
+			+ "FOREIGN KEY FK(`tStampReport`) REFERENCES %s.egreport(`tStamp`)"
+			+ ")"; 
 	
-	private String INSERT_EG_REPORT_STATUS_SQL = "INSERT INTO %s.egstatuscodes (tStamp, statuscode, value) VALUES %s ";
+	private String INSERT_EG_REPORT_STATUS_SQL = "INSERT INTO %s.egstatuscodes (tStamp, tStampReport, statuscode, value) VALUES %s ";
 	
 	private String TABLE_EG_REPORT_STATUS_SQL = "SELECT count(*) FROM information_schema.tables WHERE table_schema = '%s' AND table_name = '%s'";
   
@@ -159,7 +163,9 @@ public class GenericMysqlMetricsSender {
 				// Create Required Tables in DB.
 				statement.executeUpdate(String.format(TABLE_CREATE_EG_SQL,
 						egSchema));
-				log.debug("Table Created Successfully");
+				statement.executeUpdate(String.format(TABLE_CREATE_EG_REPORT_SQL, egSchema));
+				statement.executeUpdate(String.format(TABLE_CREATE_EG_REPORT_STATUS_SQL, egSchema, egSchema));
+				log.debug("Table(s) Created Successfully");
 			}
 			else{
 				TABLE_EG_SQL = String.format(TABLE_EG_SQL, egSchema, "eg");
@@ -205,7 +211,7 @@ public class GenericMysqlMetricsSender {
 					log.debug("Is egstatuscodes table Exists?? - " + (tableCount == 1 ? "Yes" : "No"));
 					if (tableCount == 0){
 						// Create Required Tables in DB.
-						statement.executeUpdate(String.format(TABLE_CREATE_EG_REPORT_STATUS_SQL, egSchema));
+						statement.executeUpdate(String.format(TABLE_CREATE_EG_REPORT_STATUS_SQL, egSchema, egSchema));
 						log.debug("Table Created Successfully");
 					}
 				}
@@ -271,9 +277,11 @@ public class GenericMysqlMetricsSender {
 		}
 	}
 	
-	public void writeReportToDB(String reportName, HashMap<String, String> map, String currentTime){
+	public void writeReportToDB(String reportName, HashMap<String, String> map, String reportTime){
 		StringBuffer keys = new StringBuffer();
 		StringBuffer values = new StringBuffer();
+		
+		java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 		
 		// For NET_APP*** LATE_APP*** values
 		StringBuffer statusFields = new StringBuffer();
@@ -284,7 +292,7 @@ public class GenericMysqlMetricsSender {
         
         //Adding DatTime
         keys.append("tStamp" + ",");
-        values.append("'" + currentTime + "',");
+        values.append("'" + reportTime + "',");
 		
 	    Iterator<Map.Entry<String, String>> it = map.entrySet().iterator();
 	    while (it.hasNext()) {
@@ -292,8 +300,9 @@ public class GenericMysqlMetricsSender {
 	        
 	        //Logic to send the NET_APP*** LATE_APP*** values to separate table. 
 	        if (pair.getKey().startsWith("LS_NET_APP") || pair.getKey().startsWith("LS_LATE_APP")){
-
-	        	statusFields.append("('" + currentTime + "','" + pair.getKey() + "'," +  pair.getValue() + ")," );
+	        	java.util.Date dt = new java.util.Date();
+	        	String currentTime = sdf.format(dt);
+	        	statusFields.append("('"+ currentTime + "','" + reportTime + "','" + pair.getKey() + "'," +  pair.getValue() + ")," );
 	        	// Next Steps. 
 	        }
 	        else{

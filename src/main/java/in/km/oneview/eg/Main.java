@@ -281,11 +281,6 @@ public class Main {
 				Thread.currentThread().setName("EG Report DB Sender");
 				//while(true){
 					
-					java.util.Date dt = new java.util.Date();
-					java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-					String currentTime = sdf.format(dt);
-
-					
 					// Sending Report to DB
 					if (reportReceived.length() != 0){
 						log.debug("Received Report Length : " + reportReceived.length());
@@ -313,6 +308,9 @@ public class Main {
 								//Send Report to DB if multiple reports returned by EG
 								if(!reportMap.isEmpty()){
 									log.debug("Processing Report: " + previousReportX);
+									java.util.Date dt = new java.util.Date();
+									java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+									String currentTime = sdf.format(dt);
 									mysqlMetricsSender.writeReportToDB(previousReportX, reportMap, currentTime);
 									reportReceived.setLength(0);
 								}
@@ -348,6 +346,9 @@ public class Main {
 						//Send Report to DB
 						if(!reportMap.isEmpty()){
 							log.debug("Processing Report: (Last Report)" + currentReportX);
+							java.util.Date dt = new java.util.Date();
+							java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+							String currentTime = sdf.format(dt);
 							mysqlMetricsSender.writeReportToDB(currentReportX, reportMap, currentTime);
 							reportReceived.setLength(0);
 						}
